@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import {
   employees as initialEmployees,
   attendanceRecords as initialAttendance,
@@ -18,6 +18,17 @@ export function AppProvider({ children }) {
   // Role: 'admin' (Sarah Mitchell) or 'employee' (Ethan Wilson)
   const [userRole, setUserRole] = useState('admin');
   const [isClockedIn, setIsClockedIn] = useState(true);
+  // Track exact clock-in timestamp so the live timer can compute elapsed/remaining
+  const [clockInTime, setClockInTime] = useState(() => {
+    // Default: clocked in at 09:02 AM today
+    const t = new Date();
+    t.setHours(9, 2, 0, 0);
+    return t;
+  });
+  const [clockOutTime, setClockOutTime] = useState(null);
+  // Shift window: 09:00 – 18:00
+  const SHIFT_START = { h: 9, m: 0 };
+  const SHIFT_END   = { h: 18, m: 0 };
 
   const currentUser =
     userRole === 'admin'
@@ -56,16 +67,20 @@ export function AppProvider({ children }) {
   };
 
   const toggleClock = () => {
+    const now = new Date();
     const nextState = !isClockedIn;
     setIsClockedIn(nextState);
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     if (nextState) {
+      setClockInTime(now);
+      setClockOutTime(null);
       showToast(`Clocked in successfully at ${timeStr}`, 'success');
       setActivitiesList((prev) => [
         { text: `Ethan Wilson clocked in at ${timeStr}`, time: 'Just now', type: 'attendance' },
         ...prev,
       ]);
     } else {
+      setClockOutTime(now);
       showToast(`Clocked out successfully at ${timeStr}`, 'warning');
       setActivitiesList((prev) => [
         { text: `Ethan Wilson clocked out at ${timeStr}`, time: 'Just now', type: 'attendance' },
@@ -216,6 +231,10 @@ export function AppProvider({ children }) {
         userRole,
         currentUser,
         isClockedIn,
+        clockInTime,
+        clockOutTime,
+        SHIFT_START,
+        SHIFT_END,
         switchRole,
         toggleClock,
         submitEmployeeLeave,

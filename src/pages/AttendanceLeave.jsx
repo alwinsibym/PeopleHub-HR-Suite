@@ -1,11 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   Check,
   X,
   Eye,
-  CheckCircle2,
-  XCircle,
   UserCheck,
   UserX,
   Clock,
@@ -15,273 +13,565 @@ import {
   ChevronRight,
   CalendarDays,
   Info,
-  ShieldAlert,
+  Send,
+  LogIn,
+  LogOut,
+  Timer,
+  CheckCircle2,
 } from 'lucide-react';
 import { departments } from '../data/sampleData';
 import { useApp } from '../context/AppContext';
 
-export default function AttendanceLeave() {
+/* ─── helpers ─── */
+function padZ(n) { return String(n).padStart(2, '0'); }
+
+function fmtDuration(ms) {
+  if (ms < 0) ms = 0;
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${padZ(h)}h ${padZ(m)}m ${padZ(s)}s`;
+}
+
+/* ─── Live Shift Timer (employee only) ─── */
+function ShiftTimer({ isClockedIn, clockInTime, clockOutTime, SHIFT_START, SHIFT_END }) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const shiftStart = new Date(now);
+  shiftStart.setHours(SHIFT_START.h, SHIFT_START.m, 0, 0);
+  const shiftEnd = new Date(now);
+  shiftEnd.setHours(SHIFT_END.h, SHIFT_END.m, 0, 0);
+  const shiftTotal = shiftEnd - shiftStart; // 9 hrs in ms
+
+  // — Clocked out: show total worked time —
+  if (clockOutTime) {
+    const worked = clockOutTime - clockInTime;
+    const wouldEnd = shiftEnd;
+    const pct = Math.min(100, (worked / shiftTotal) * 100);
+    return (
+      <div style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)',
+        padding: '24px 28px',
+        marginBottom: 24,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 24,
+      }}>
+        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--bg)', border: '3px solid var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CheckCircle2 size={30} color="var(--success)" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600, marginBottom: 4 }}>
+            Shift Complete
+          </div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text)', lineHeight: 1.1 }}>
+            {fmtDuration(worked)} worked
+          </div>
+          <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+            Clocked in {clockInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} → Clocked out {clockOutTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+          {/* progress bar */}
+          <div style={{ marginTop: 10, height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: 'var(--success)', borderRadius: 4, transition: 'width 1s linear' }} />
+          </div>
+        </div>
+        <span className="badge badge-success" style={{ fontSize: '0.82rem', padding: '6px 14px' }}>Logged Off</span>
+      </div>
+    );
+  }
+
+  // — Before shift starts (not yet clocked in) —
+  if (!isClockedIn && now < shiftStart) {
+    const timeToStart = shiftStart - now;
+    return (
+      <div style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)',
+        padding: '24px 28px',
+        marginBottom: 24,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 24,
+      }}>
+        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--info-light)', border: '3px solid var(--info)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Timer size={30} color="var(--info)" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600, marginBottom: 4 }}>
+            Shift starts at {padZ(SHIFT_START.h)}:{padZ(SHIFT_START.m)}
+          </div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--info)', lineHeight: 1.1 }}>
+            {fmtDuration(timeToStart)}
+          </div>
+          <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+            Time remaining until your shift begins
+          </div>
+        </div>
+        <span className="badge badge-info" style={{ fontSize: '0.82rem', padding: '6px 14px' }}>Not Started</span>
+      </div>
+    );
+  }
+
+  // — Clocked in: show elapsed + remaining —
+  if (isClockedIn && clockInTime) {
+    const elapsed = now - clockInTime;
+    const remaining = shiftEnd - now;
+    const pct = Math.min(100, (elapsed / shiftTotal) * 100);
+    return (
+      <div style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderLeft: '4px solid var(--success)',
+        borderRadius: 'var(--radius)',
+        padding: '24px 28px',
+        marginBottom: 24,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 28,
+      }}>
+        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--success-light)', border: '3px solid var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Clock size={30} color="var(--success)" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600, marginBottom: 2 }}>
+            Shift in progress · Clocked in at {clockInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+          <div style={{ display: 'flex', gap: 36, marginTop: 4 }}>
+            <div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--success)', lineHeight: 1.1 }}>{fmtDuration(elapsed)}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 2 }}>Time Elapsed</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: remaining < 0 ? 'var(--danger)' : 'var(--warning)', lineHeight: 1.1 }}>
+                {remaining < 0 ? '+' : ''}{fmtDuration(Math.abs(remaining))}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                {remaining < 0 ? 'Overtime' : 'Time Remaining'}
+              </div>
+            </div>
+          </div>
+          {/* progress bar */}
+          <div style={{ marginTop: 12, height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${pct}%`,
+              background: remaining < 0 ? 'var(--danger)' : 'var(--success)',
+              borderRadius: 4,
+              transition: 'width 1s linear',
+            }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+            <span>09:00 AM</span>
+            <span>Shift ends 06:00 PM</span>
+          </div>
+        </div>
+        <span className="badge badge-success" style={{ fontSize: '0.82rem', padding: '6px 14px' }}>● Active</span>
+      </div>
+    );
+  }
+
+  // — Default: not clocked in during shift hours —
+  const timeLeft = shiftEnd - now;
+  return (
+    <div style={{
+      background: 'var(--card)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius)',
+      padding: '24px 28px',
+      marginBottom: 24,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 24,
+    }}>
+      <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--warning-light)', border: '3px solid var(--warning)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <LogIn size={30} color="var(--warning)" />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600, marginBottom: 4 }}>
+          Shift in progress – Not yet clocked in
+        </div>
+        <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--warning)', lineHeight: 1.1 }}>
+          {fmtDuration(timeLeft)} left in shift
+        </div>
+        <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+          Clock in now to start tracking your hours
+        </div>
+      </div>
+      <span className="badge badge-warning" style={{ fontSize: '0.82rem', padding: '6px 14px' }}>Not Clocked In</span>
+    </div>
+  );
+}
+
+/* ─── Employee Self-Service View ─── */
+function EmployeeAttendanceView() {
   const {
-    attendance,
     leaveRequests,
-    approveLeave,
-    rejectLeave,
+    isClockedIn,
+    clockInTime,
+    clockOutTime,
+    SHIFT_START,
+    SHIFT_END,
+    toggleClock,
+    submitEmployeeLeave,
   } = useApp();
+
+  const [activeTab, setActiveTab] = useState('attendance');
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    type: 'Annual Leave',
+    fromDate: '',
+    toDate: '',
+    days: 1,
+    reason: '',
+  });
+
+  // Only Ethan Wilson's records
+  const myLeaves = leaveRequests.filter((l) => l.employeeId === 'EMP001');
+  const myAttendanceHistory = [
+    { date: 'Nov 05, 2026', checkIn: '09:02 AM', checkOut: isClockedIn ? '—' : (clockOutTime ? clockOutTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'), status: 'Present', hours: isClockedIn ? 'In Progress' : '—' },
+    { date: 'Nov 04, 2026', checkIn: '09:00 AM', checkOut: '06:03 PM', status: 'Present', hours: '9h 03m' },
+    { date: 'Nov 03, 2026', checkIn: '09:15 AM', checkOut: '06:00 PM', status: 'Late', hours: '8h 45m' },
+    { date: 'Nov 01, 2026', checkIn: '09:01 AM', checkOut: '06:00 PM', status: 'Present', hours: '8h 59m' },
+    { date: 'Oct 31, 2026', checkIn: '09:00 AM', checkOut: '06:30 PM', status: 'Present', hours: '9h 30m' },
+    { date: 'Oct 30, 2026', checkIn: '—', checkOut: '—', status: 'On Leave', hours: '—' },
+    { date: 'Oct 29, 2026', checkIn: '09:05 AM', checkOut: '06:00 PM', status: 'Present', hours: '8h 55m' },
+    { date: 'Oct 28, 2026', checkIn: '09:00 AM', checkOut: '06:00 PM', status: 'Present', hours: '9h 00m' },
+  ];
+
+  const handleLeaveSubmit = (e) => {
+    e.preventDefault();
+    submitEmployeeLeave(leaveForm);
+    setIsLeaveModalOpen(false);
+    setLeaveForm({ type: 'Annual Leave', fromDate: '', toDate: '', days: 1, reason: '' });
+  };
+
+  const statusBadge = (s) => {
+    if (s === 'Present') return 'badge-success';
+    if (s === 'Late') return 'badge-warning';
+    if (s === 'Absent') return 'badge-danger';
+    return 'badge-info';
+  };
+
+  const leaveBadge = (s) => {
+    if (s === 'Approved') return 'badge-success';
+    if (s === 'Pending') return 'badge-warning';
+    if (s === 'Rejected') return 'badge-danger';
+    return 'badge-neutral';
+  };
+
+  return (
+    <div className="page-content">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1>My Attendance & Leave</h1>
+          <p className="subtitle">Your personal attendance records and leave history.</p>
+        </div>
+        <button
+          className={`btn ${isClockedIn ? 'btn-danger' : 'btn-success'}`}
+          onClick={toggleClock}
+          style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+        >
+          {isClockedIn ? <LogOut size={16} /> : <LogIn size={16} />}
+          {isClockedIn ? 'Clock Out' : 'Clock In'}
+        </button>
+      </div>
+
+      {/* Live shift timer */}
+      <ShiftTimer
+        isClockedIn={isClockedIn}
+        clockInTime={clockInTime}
+        clockOutTime={clockOutTime}
+        SHIFT_START={SHIFT_START}
+        SHIFT_END={SHIFT_END}
+      />
+
+      {/* Quick stats */}
+      <div className="stat-cards" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginBottom: 24 }}>
+        {[
+          { label: 'Present Days', value: '198', accent: 'success', sub: 'This year' },
+          { label: 'Absent Days', value: '4', accent: 'danger', sub: 'This year' },
+          { label: 'Attendance Rate', value: '98%', accent: 'primary', sub: 'Excellent' },
+          { label: 'Leave Balance', value: '24d', accent: 'info', sub: '12 Annual · 7 Sick · 5 Casual' },
+        ].map((s, i) => (
+          <div className="stat-card" key={i}>
+            <div className="stat-info">
+              <h3 style={{ color: `var(--${s.accent})` }}>{s.value}</h3>
+              <p>{s.label}</p>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>{s.sub}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div className="tabs">
+        <button className={`tab ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
+          <CalendarDays size={16} /> My Attendance Log
+        </button>
+        <button className={`tab ${activeTab === 'leave' ? 'active' : ''}`} onClick={() => setActiveTab('leave')}>
+          <FileText size={16} /> My Leave Requests
+          {myLeaves.filter(l => l.status === 'Pending').length > 0 && (
+            <span style={{ marginLeft: 6, background: 'var(--warning-light)', color: 'var(--warning)', fontSize: '0.72rem', padding: '1px 7px', borderRadius: 10, fontWeight: 600 }}>
+              {myLeaves.filter(l => l.status === 'Pending').length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {activeTab === 'attendance' ? (
+        <div className="card">
+          <div className="card-header">
+            <h2>Attendance Log</h2>
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Showing last 8 days</span>
+          </div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Hours Worked</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {myAttendanceHistory.map((r, i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight: 500 }}>{r.date}</td>
+                  <td style={{ color: r.checkIn === '—' ? 'var(--text-secondary)' : 'var(--text)', fontWeight: 600 }}>{r.checkIn}</td>
+                  <td style={{ color: r.checkOut === '—' ? 'var(--text-secondary)' : 'var(--text)', fontWeight: 600 }}>{r.checkOut}</td>
+                  <td style={{ fontWeight: 600, color: r.hours === 'In Progress' ? 'var(--success)' : 'var(--text)' }}>{r.hours}</td>
+                  <td><span className={`badge ${statusBadge(r.status)}`}><span className="badge-dot" />{r.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="card">
+          <div className="card-header">
+            <h2>My Leave Requests</h2>
+            <button className="btn btn-primary btn-sm" onClick={() => setIsLeaveModalOpen(true)}>
+              <FileText size={14} /> Apply for Leave
+            </button>
+          </div>
+          {myLeaves.length === 0 ? (
+            <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <CalendarOff size={36} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <p>No leave requests yet. Use the button above to apply.</p>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Leave Type</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Days</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myLeaves.map((lr) => (
+                  <tr key={lr.id}>
+                    <td style={{ fontWeight: 600 }}>{lr.leaveType}</td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.84rem' }}>{lr.fromDate}</td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.84rem' }}>{lr.toDate}</td>
+                    <td style={{ fontWeight: 600 }}>{lr.days}d</td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.84rem', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {lr.reason || '—'}
+                    </td>
+                    <td><span className={`badge ${leaveBadge(lr.status)}`}><span className="badge-dot" />{lr.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Apply Leave Modal */}
+      {isLeaveModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsLeaveModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Apply for Leave</h3>
+              <button className="drawer-close" onClick={() => setIsLeaveModalOpen(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleLeaveSubmit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Leave Type</label>
+                  <select className="filter-select" style={{ width: '100%' }} value={leaveForm.type}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, type: e.target.value })}>
+                    <option>Annual Leave (12 days left)</option>
+                    <option>Sick Leave (7 days left)</option>
+                    <option>Casual Leave (5 days left)</option>
+                  </select>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>From Date</label>
+                    <input type="date" required value={leaveForm.fromDate}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, fromDate: e.target.value })}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.86rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>To Date</label>
+                    <input type="date" required value={leaveForm.toDate}
+                      onChange={(e) => setLeaveForm({ ...leaveForm, toDate: e.target.value })}
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.86rem' }} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Number of Days</label>
+                  <input type="number" min="1" max="14" required value={leaveForm.days}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, days: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.86rem' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Reason / Notes</label>
+                  <input type="text" required placeholder="e.g. Family function" value={leaveForm.reason}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.86rem' }} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setIsLeaveModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary"><Send size={14} /> Submit Request</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Admin View (unchanged logic) ─── */
+function AdminAttendanceView() {
+  const { attendance, leaveRequests, approveLeave, rejectLeave } = useApp();
 
   const [activeTab, setActiveTab] = useState('attendance');
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All Departments');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedDateFilter, setSelectedDateFilter] = useState('Today');
-
-  // Modal dialog state for confirmation & details
-  const [actionModal, setActionModal] = useState(null); // { id, name, type, action: 'approve' | 'reject' }
-  const [viewModal, setViewModal] = useState(null); // selected leave request object
+  const [actionModal, setActionModal] = useState(null);
+  const [viewModal, setViewModal] = useState(null);
 
   const pendingLeaves = leaveRequests.filter((l) => l.status === 'Pending');
-  const approvedLeaves = leaveRequests.filter((l) => l.status === 'Approved');
-  const rejectedLeaves = leaveRequests.filter((l) => l.status === 'Rejected');
 
-  // Stats for Tab A (Attendance)
   const attendanceStats = [
-    { label: 'Present Today', value: '219', icon: UserCheck, accent: 'success', sub: '201 Onsite • 18 Remote' },
+    { label: 'Present Today', value: '219', icon: UserCheck, accent: 'success', sub: '201 Onsite · 18 Remote' },
     { label: 'Absent Today', value: '09', icon: UserX, accent: 'danger', sub: '3 Unexcused absences' },
     { label: 'Late Arrival', value: '08', icon: Clock, accent: 'warning', sub: 'Avg delay: 18 mins' },
-    { label: 'On Approved Leave', value: '12', icon: CalendarOff, accent: 'info', sub: '8 PTO • 4 Medical' },
+    { label: 'On Approved Leave', value: '12', icon: CalendarOff, accent: 'info', sub: '8 PTO · 4 Medical' },
   ];
 
-  // Stats for Tab B (Leave Requests) - matching exact assessment specs: 42, 08, 28, 06
-  const pendingCountDisplay = pendingLeaves.length < 10 ? `0${pendingLeaves.length}` : pendingLeaves.length;
   const leaveStats = [
     { label: 'Total Requests', value: '42', accent: 'primary', sub: 'Fiscal Year 2026' },
-    {
-      label: 'Pending Approval',
-      value: pendingCountDisplay,
-      accent: 'warning',
-      sub: 'Action required',
-    },
-    { label: 'Approved Requests', value: '28', accent: 'success', sub: '66% approved' },
-    {
-      label: 'Rejected Requests',
-      value: '06',
-      accent: 'danger',
-      sub: 'Policy non-compliant',
-    },
+    { label: 'Pending Approval', value: pendingLeaves.length < 10 ? `0${pendingLeaves.length}` : pendingLeaves.length, accent: 'warning', sub: 'Action required' },
+    { label: 'Approved', value: '28', accent: 'success', sub: '66% approved' },
+    { label: 'Rejected', value: '06', accent: 'danger', sub: 'Policy non-compliant' },
   ];
 
-  // Filtered attendance records
   const filteredAttendance = attendance.filter((r) => {
     const q = search.toLowerCase();
-    const matchesSearch =
-      r.name.toLowerCase().includes(q) ||
-      r.employeeId.toLowerCase().includes(q);
-    const matchesDept =
-      deptFilter === 'All Departments' || r.department === deptFilter;
-    const matchesStatus = statusFilter === 'All' || r.status === statusFilter;
-    return matchesSearch && matchesDept && matchesStatus;
+    return (r.name.toLowerCase().includes(q) || r.employeeId.toLowerCase().includes(q))
+      && (deptFilter === 'All Departments' || r.department === deptFilter)
+      && (statusFilter === 'All' || statusFilter === 'All Status' || r.status === statusFilter);
   });
 
-  // Filtered leave requests
   const filteredLeave = leaveRequests.filter((r) => {
     const q = search.toLowerCase();
-    const matchesSearch =
-      r.name.toLowerCase().includes(q) ||
-      r.employeeId.toLowerCase().includes(q) ||
-      r.leaveType.toLowerCase().includes(q);
-    const matchesDept =
-      deptFilter === 'All Departments' || r.department === deptFilter;
-    const matchesStatus = statusFilter === 'All' || r.status === statusFilter;
-    return matchesSearch && matchesDept && matchesStatus;
+    return (r.name.toLowerCase().includes(q) || r.leaveType.toLowerCase().includes(q))
+      && (deptFilter === 'All Departments' || r.department === deptFilter)
+      && (statusFilter === 'All' || statusFilter === 'All Status' || r.status === statusFilter);
   });
 
-  const handleConfirmAction = () => {
+  const handleConfirm = () => {
     if (!actionModal) return;
-    if (actionModal.action === 'approve') {
-      approveLeave(actionModal.id);
-    } else {
-      rejectLeave(actionModal.id);
-    }
+    actionModal.action === 'approve' ? approveLeave(actionModal.id) : rejectLeave(actionModal.id);
     setActionModal(null);
   };
 
-  const resetFilters = () => {
-    setSearch('');
-    setDeptFilter('All Departments');
-    setStatusFilter('All');
-  };
+  const badgeClass = (s) =>
+    s === 'Present' ? 'badge-success' : s === 'Late' ? 'badge-warning' : s === 'Absent' ? 'badge-danger' : 'badge-info';
+  const leaveBadgeClass = (s) =>
+    s === 'Approved' ? 'badge-success' : s === 'Pending' ? 'badge-warning' : 'badge-danger';
 
   return (
     <div className="page-content">
       <div className="page-header">
-        <h1>Attendance & Leave</h1>
-        <p className="subtitle">
-          Track real-time biometric attendance and manage employee leave requests.
-        </p>
+        <h1>Attendance &amp; Leave</h1>
+        <p className="subtitle">Track real-time attendance and manage employee leave requests.</p>
       </div>
 
-      {/* Unified Tab Switcher */}
       <div className="tabs">
-        <button
-          className={`tab ${activeTab === 'attendance' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('attendance');
-            resetFilters();
-          }}
-        >
-          <CalendarDays size={17} />
-          <span>Attendance Records</span>
-          <span className="tab-badge">248 Total</span>
+        <button className={`tab ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => { setActiveTab('attendance'); setSearch(''); setStatusFilter('All'); }}>
+          <CalendarDays size={17} /> Attendance Records <span className="tab-badge">248 Total</span>
         </button>
-        <button
-          className={`tab ${activeTab === 'leave' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('leave');
-            resetFilters();
-          }}
-        >
-          <FileText size={17} />
-          <span>Leave Requests</span>
-          <span className="tab-badge">{pendingLeaves.length} Pending</span>
+        <button className={`tab ${activeTab === 'leave' ? 'active' : ''}`} onClick={() => { setActiveTab('leave'); setSearch(''); setStatusFilter('All'); }}>
+          <FileText size={17} /> Leave Requests <span className="tab-badge">{pendingLeaves.length} Pending</span>
         </button>
       </div>
 
-      {/* 4 Summary Cards */}
       <div className="stat-cards">
-        {(activeTab === 'attendance' ? attendanceStats : leaveStats).map(
-          (s, i) => (
-            <div className="stat-card" key={i}>
-              <div className="stat-card-top">
-                <span className="stat-label">{s.label}</span>
-                <div className={`stat-icon ${s.accent}`}>
-                  {'icon' in s ? <s.icon size={20} /> : <FileText size={20} />}
-                </div>
-              </div>
-              <div>
-                <div className="stat-card-bottom">
-                  <div className="stat-value">{s.value}</div>
-                  <span
-                    className={`stat-trend ${
-                      s.accent === 'success'
-                        ? 'positive'
-                        : s.accent === 'warning'
-                        ? 'caution'
-                        : 'neutral'
-                    }`}
-                  >
-                    {activeTab === 'attendance' ? 'Today' : 'YTD 2026'}
-                  </span>
-                </div>
-                {s.sub && <div className="stat-supporting-text">{s.sub}</div>}
-              </div>
+        {(activeTab === 'attendance' ? attendanceStats : leaveStats).map((s, i) => (
+          <div className="stat-card" key={i}>
+            <div className={`stat-icon ${s.accent}`}>{s.icon ? <s.icon size={22} /> : <FileText size={22} />}</div>
+            <div className="stat-info">
+              <h3>{s.value}</h3>
+              <p>{s.label}</p>
+              {s.sub && <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>{s.sub}</span>}
             </div>
-          )
-        )}
+          </div>
+        ))}
       </div>
 
-      {/* Toolbar & Filter Bar */}
       <div className="toolbar">
         <div className="toolbar-left">
           {activeTab === 'attendance' && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                background: 'white',
-                padding: '4px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid var(--border)',
-              }}
-            >
+            <div style={{ display: 'flex', gap: 4, background: 'white', padding: 4, borderRadius: 'var(--radius-full)', border: '1px solid var(--border)' }}>
               {['Today', 'Yesterday', 'Weekly'].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setSelectedDateFilter(d)}
-                  style={{
-                    padding: '5px 14px',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    borderRadius: 'var(--radius-full)',
-                    background: selectedDateFilter === d ? 'var(--primary)' : 'transparent',
-                    color: selectedDateFilter === d ? 'white' : 'var(--text-secondary)',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {d}
-                </button>
+                <button key={d} onClick={() => setSelectedDateFilter(d)} style={{ padding: '5px 14px', fontSize: '0.82rem', fontWeight: 600, borderRadius: 'var(--radius-full)', background: selectedDateFilter === d ? 'var(--primary)' : 'transparent', color: selectedDateFilter === d ? 'white' : 'var(--text-secondary)', transition: 'all 0.15s' }}>{d}</button>
               ))}
             </div>
           )}
-
           <div className="search-input">
             <Search size={15} />
-            <input
-              type="text"
-              placeholder="Search by employee or ID..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <span
-                className="clear-search-btn"
-                onClick={() => setSearch('')}
-                title="Clear"
-              >
-                <X size={14} />
-              </span>
-            )}
+            <input type="text" placeholder="Search by employee or ID..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            {search && <span className="clear-search-btn" onClick={() => setSearch('')} title="Clear"><X size={14} /></span>}
           </div>
-
-          <select
-            className="filter-select"
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-          >
-            {departments.map((d) => (
-              <option key={d}>{d}</option>
-            ))}
+          <select className="filter-select" value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}>
+            {departments.map((d) => <option key={d}>{d}</option>)}
           </select>
-
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            {activeTab === 'attendance' ? (
-              <>
-                <option>All Status</option>
-                <option>Present</option>
-                <option>Late</option>
-                <option>Absent</option>
-                <option>On Leave</option>
-              </>
-            ) : (
-              <>
-                <option>All Status</option>
-                <option>Pending</option>
-                <option>Approved</option>
-                <option>Rejected</option>
-              </>
-            )}
+          <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            {activeTab === 'attendance'
+              ? ['All Status', 'Present', 'Late', 'Absent', 'On Leave'].map(o => <option key={o}>{o}</option>)
+              : ['All Status', 'Pending', 'Approved', 'Rejected'].map(o => <option key={o}>{o}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Main Table Card */}
       <div className="card">
-        <div className="data-table-wrapper">
+        <div style={{ overflowX: 'auto' }}>
           {activeTab === 'attendance' ? (
-            /* ── TAB A: Attendance Records Table ── */
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Employee</th>
-                  <th>Shift Timing</th>
-                  <th>Check In</th>
-                  <th>Check Out</th>
-                  <th>Working Hours</th>
-                  <th>Source / Method</th>
-                  <th>Status</th>
+                  <th>Employee</th><th>Shift</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Source</th><th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -289,96 +579,31 @@ export default function AttendanceLeave() {
                   <tr key={r.employeeId}>
                     <td>
                       <div className="employee-cell">
-                        <div className="employee-avatar-wrapper">
-                          <img src={r.avatar} alt={r.name} />
-                          <span
-                            className={`emp-status-dot ${
-                              r.status === 'Present' || r.status === 'Late'
-                                ? 'active'
-                                : 'leave'
-                            }`}
-                          />
+                        <img src={r.avatar} alt={r.name} />
+                        <div className="emp-info">
+                          <div className="emp-name">{r.name}</div>
+                          <div className="emp-email">{r.department} · {r.employeeId}</div>
                         </div>
-                        <span className="emp-info">
-                          <span className="emp-name">{r.name}</span>
-                          <span className="emp-email">{r.department} • {r.employeeId}</span>
-                        </span>
                       </div>
                     </td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.84rem' }}>
-                      {r.shift || '09:00 – 18:00'}
-                    </td>
-                    <td style={{ color: r.checkIn === '—' ? 'var(--text-muted)' : 'var(--text)', fontWeight: 600 }}>
-                      {r.checkIn}
-                    </td>
-                    <td style={{ color: r.checkOut === '—' ? 'var(--text-muted)' : 'var(--text)', fontWeight: 600 }}>
-                      {r.checkOut}
-                    </td>
-                    <td style={{ fontWeight: 600, color: 'var(--text)' }}>
-                      {r.workingHours}
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          background: 'var(--bg)',
-                          padding: '3px 9px',
-                          borderRadius: 'var(--radius-full)',
-                          border: '1px solid var(--border)',
-                          fontSize: '0.76rem',
-                          color: 'var(--text-secondary)',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {r.source || 'Web App'}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          r.status === 'Present'
-                            ? 'badge-success'
-                            : r.status === 'Late'
-                            ? 'badge-warning'
-                            : r.status === 'Absent'
-                            ? 'badge-danger'
-                            : 'badge-info'
-                        }`}
-                      >
-                        <span className="badge-dot" />
-                        {r.status}
-                        {r.lateBy && ` (${r.lateBy})`}
-                      </span>
-                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.84rem' }}>{r.shift || '09:00 – 18:00'}</td>
+                    <td style={{ fontWeight: 600 }}>{r.checkIn}</td>
+                    <td style={{ fontWeight: 600 }}>{r.checkOut}</td>
+                    <td style={{ fontWeight: 600 }}>{r.workingHours}</td>
+                    <td><span style={{ background: 'var(--bg)', padding: '3px 9px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border)', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>{r.source || 'Web App'}</span></td>
+                    <td><span className={`badge ${badgeClass(r.status)}`}><span className="badge-dot" />{r.status}</span></td>
                   </tr>
                 ))}
                 {filteredAttendance.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      style={{
-                        textAlign: 'center',
-                        padding: 44,
-                        color: 'var(--text-secondary)',
-                      }}
-                    >
-                      No attendance records found matching filters.
-                    </td>
-                  </tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 44, color: 'var(--text-secondary)' }}>No records found.</td></tr>
                 )}
               </tbody>
             </table>
           ) : (
-            /* ── TAB B: Leave Requests Table ── */
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Employee</th>
-                  <th>Leave Type</th>
-                  <th>Duration</th>
-                  <th>Leave Reason</th>
-                  <th>Remaining Bal.</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'center' }}>Actions</th>
+                  <th>Employee</th><th>Leave Type</th><th>Duration</th><th>From → To</th><th>Reason</th><th>Balance</th><th>Status</th><th style={{ textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -386,247 +611,67 @@ export default function AttendanceLeave() {
                   <tr key={lr.id}>
                     <td>
                       <div className="employee-cell">
-                        <div className="employee-avatar-wrapper">
-                          <img src={lr.avatar} alt={lr.name} />
-                          <span className="emp-status-dot active" />
+                        <img src={lr.avatar} alt={lr.name} />
+                        <div className="emp-info">
+                          <div className="emp-name">{lr.name}</div>
+                          <div className="emp-email">{lr.department}</div>
                         </div>
-                        <span className="emp-info">
-                          <span className="emp-name">{lr.name}</span>
-                          <span className="emp-email">{lr.department}</span>
-                        </span>
                       </div>
                     </td>
+                    <td style={{ fontWeight: 600 }}>{lr.leaveType}</td>
+                    <td>{lr.days}d</td>
+                    <td style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>{lr.fromDate} → {lr.toDate}</td>
+                    <td style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lr.reason || '—'}</td>
+                    <td>{lr.balanceRemaining ?? 12}d</td>
+                    <td><span className={`badge ${leaveBadgeClass(lr.status)}`}><span className="badge-dot" />{lr.status}</span></td>
                     <td>
-                      <span className="badge badge-neutral">
-                        {lr.leaveType}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-                      <div style={{ color: 'var(--text)', fontWeight: 600 }}>
-                        {lr.days} {lr.days === 1 ? 'day' : 'days'}
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                        {new Date(lr.fromDate).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}{' '}
-                        –{' '}
-                        {new Date(lr.toDate).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </div>
-                    </td>
-                    <td style={{ maxWidth: 220, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {lr.reason || 'Personal leave request'}
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          background: 'var(--bg)',
-                          padding: '3px 10px',
-                          borderRadius: 'var(--radius-full)',
-                          border: '1px solid var(--border)',
-                          fontSize: '0.78rem',
-                          fontWeight: 600,
-                          color: lr.balanceRemaining < 5 ? 'var(--warning)' : 'var(--text)',
-                        }}
-                      >
-                        {lr.balanceRemaining || 12} days left
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          lr.status === 'Approved'
-                            ? 'badge-success'
-                            : lr.status === 'Pending'
-                            ? 'badge-warning'
-                            : 'badge-danger'
-                        }`}
-                      >
-                        <span className="badge-dot" />
-                        {lr.status}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
                       {lr.status === 'Pending' ? (
-                        <div
-                          className="action-btns"
-                          style={{ justifyContent: 'center' }}
-                        >
-                          <button
-                            className="btn btn-success btn-sm"
-                            title="Approve Leave"
-                            onClick={() =>
-                              setActionModal({
-                                id: lr.id,
-                                name: lr.name,
-                                type: lr.leaveType,
-                                days: lr.days,
-                                reason: lr.reason,
-                                action: 'approve',
-                              })
-                            }
-                          >
-                            <Check size={14} />
-                            Approve
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            title="Reject Leave"
-                            onClick={() =>
-                              setActionModal({
-                                id: lr.id,
-                                name: lr.name,
-                                type: lr.leaveType,
-                                days: lr.days,
-                                reason: lr.reason,
-                                action: 'reject',
-                              })
-                            }
-                          >
-                            <X size={14} />
-                          </button>
-                          <button
-                            className="btn-icon"
-                            title="View Full Details"
-                            onClick={() => setViewModal(lr)}
-                          >
-                            <Eye size={15} />
-                          </button>
+                        <div className="action-btns" style={{ justifyContent: 'center' }}>
+                          <button className="btn btn-success btn-sm" onClick={() => setActionModal({ id: lr.id, name: lr.name, action: 'approve' })}><Check size={13} /> Approve</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => setActionModal({ id: lr.id, name: lr.name, action: 'reject' })}><X size={13} /> Reject</button>
+                          <button className="btn-icon" title="Details" onClick={() => setViewModal(lr)}><Eye size={14} /></button>
                         </div>
                       ) : (
-                        <button
-                          className="btn btn-outline btn-sm"
-                          style={{ padding: '4px 12px', fontSize: '0.78rem', borderRadius: 'var(--radius-full)' }}
-                          onClick={() => setViewModal(lr)}
-                        >
-                          <Info size={13} />
-                          Details
-                        </button>
+                        <div style={{ textAlign: 'center' }}>
+                          <button className="btn-icon" title="Details" onClick={() => setViewModal(lr)}><Eye size={14} /></button>
+                        </div>
                       )}
                     </td>
                   </tr>
                 ))}
                 {filteredLeave.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      style={{
-                        textAlign: 'center',
-                        padding: 44,
-                        color: 'var(--text-secondary)',
-                      }}
-                    >
-                      No leave requests found.
-                    </td>
-                  </tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', padding: 44, color: 'var(--text-secondary)' }}>No leave requests found.</td></tr>
                 )}
               </tbody>
             </table>
           )}
         </div>
-
-        {/* Pagination */}
         <div className="pagination">
-          <span className="pagination-info">
-            Showing{' '}
-            {activeTab === 'attendance'
-              ? filteredAttendance.length
-              : filteredLeave.length}{' '}
-            records
-          </span>
+          <span className="pagination-info">Showing {activeTab === 'attendance' ? filteredAttendance.length : filteredLeave.length} records</span>
           <div className="pagination-buttons">
-            <button disabled>
-              <ChevronLeft size={16} />
-            </button>
+            <button disabled><ChevronLeft size={16} /></button>
             <button className="active">1</button>
             <button>2</button>
-            <button>
-              <ChevronRight size={16} />
-            </button>
+            <button><ChevronRight size={16} /></button>
           </div>
         </div>
       </div>
 
-      {/* Confirmation Modal Dialog for Approve / Reject */}
+      {/* Confirm Modal */}
       {actionModal && (
         <div className="modal-overlay" onClick={() => setActionModal(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>
-                {actionModal.action === 'approve'
-                  ? 'Approve Leave Request'
-                  : 'Reject Leave Request'}
-              </h3>
-              <button
-                className="drawer-close"
-                onClick={() => setActionModal(null)}
-              >
-                <X size={18} />
-              </button>
+              <h3>{actionModal.action === 'approve' ? 'Approve' : 'Reject'} Leave Request</h3>
+              <button className="drawer-close" onClick={() => setActionModal(null)}><X size={18} /></button>
             </div>
             <div className="modal-body">
-              <p>
-                {actionModal.action === 'approve' ? (
-                  <>
-                    Are you sure you want to approve the{' '}
-                    <strong>{actionModal.type}</strong> ({actionModal.days} days) for{' '}
-                    <strong>{actionModal.name}</strong>?
-                    <br />
-                    {actionModal.reason && (
-                      <em style={{ display: 'block', marginTop: 8, color: 'var(--text-muted)' }}>
-                        "{actionModal.reason}"
-                      </em>
-                    )}
-                    <br />
-                    The attendance calendar and employee leave balance will be updated automatically.
-                  </>
-                ) : (
-                  <>
-                    Are you sure you want to reject the{' '}
-                    <strong>{actionModal.type}</strong> for{' '}
-                    <strong>{actionModal.name}</strong>?
-                    <br />
-                    A notification will be sent to the employee.
-                  </>
-                )}
-              </p>
+              <p>Are you sure you want to <strong>{actionModal.action}</strong> the leave request for <strong>{actionModal.name}</strong>?</p>
             </div>
             <div className="modal-footer">
-              <button
-                className="btn btn-outline"
-                onClick={() => setActionModal(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className={`btn ${
-                  actionModal.action === 'approve' ? 'btn-success' : 'btn-danger'
-                }`}
-                style={
-                  actionModal.action === 'reject'
-                    ? {
-                        background: 'var(--danger)',
-                        color: 'white',
-                        border: 'none',
-                      }
-                    : {}
-                }
-                onClick={handleConfirmAction}
-              >
-                {actionModal.action === 'approve' ? (
-                  <>
-                    <CheckCircle2 size={16} /> Confirm Approval
-                  </>
-                ) : (
-                  <>
-                    <XCircle size={16} /> Confirm Rejection
-                  </>
-                )}
+              <button className="btn btn-outline" onClick={() => setActionModal(null)}>Cancel</button>
+              <button className={`btn ${actionModal.action === 'approve' ? 'btn-success' : 'btn-danger'}`} onClick={handleConfirm}>
+                {actionModal.action === 'approve' ? <><Check size={14} /> Approve</> : <><X size={14} /> Reject</>}
               </button>
             </div>
           </div>
@@ -639,116 +684,41 @@ export default function AttendanceLeave() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Leave Request Details</h3>
-              <button
-                className="drawer-close"
-                onClick={() => setViewModal(null)}
-              >
-                <X size={18} />
-              </button>
+              <button className="drawer-close" onClick={() => setViewModal(null)}><X size={18} /></button>
             </div>
             <div className="modal-body">
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  marginBottom: 18,
-                  paddingBottom: 14,
-                  borderBottom: '1px solid var(--border)',
-                }}
-              >
-                <img
-                  src={viewModal.avatar}
-                  alt={viewModal.name}
-                  style={{ width: 48, height: 48, borderRadius: '50%' }}
-                />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
+                <img src={viewModal.avatar} alt={viewModal.name} style={{ width: 48, height: 48, borderRadius: '50%' }} />
                 <div>
-                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700 }}>
-                    {viewModal.name}
-                  </h4>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                    {viewModal.department} • ID: {viewModal.employeeId}
-                  </span>
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{viewModal.name}</h4>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{viewModal.department} · ID: {viewModal.employeeId}</span>
                 </div>
               </div>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 14,
-                  fontSize: '0.88rem',
-                }}
-              >
-                <div>
-                  <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase' }}>
-                    Leave Type
-                  </span>
-                  <strong>{viewModal.leaveType}</strong>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase' }}>
-                    Duration
-                  </span>
-                  <strong>{viewModal.days} Days</strong>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase' }}>
-                    From Date
-                  </span>
-                  <span>{viewModal.fromDate}</span>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase' }}>
-                    To Date
-                  </span>
-                  <span>{viewModal.toDate}</span>
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: '0.88rem' }}>
+                {[['Leave Type', viewModal.leaveType], ['Duration', `${viewModal.days} Days`], ['From', viewModal.fromDate], ['To', viewModal.toDate]].map(([l, v]) => (
+                  <div key={l}>
+                    <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase' }}>{l}</span>
+                    <strong>{v}</strong>
+                  </div>
+                ))}
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase' }}>
-                    Reason & Notes
-                  </span>
-                  <p style={{ marginTop: 4, background: 'var(--bg)', padding: 10, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                    "{viewModal.reason || 'Personal leave request'}"
-                  </p>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase' }}>
-                    Remaining Leave Balance
-                  </span>
-                  <strong>{viewModal.balanceRemaining || 12} Days</strong>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase' }}>
-                    Current Status
-                  </span>
-                  <span
-                    className={`badge ${
-                      viewModal.status === 'Approved'
-                        ? 'badge-success'
-                        : viewModal.status === 'Pending'
-                        ? 'badge-warning'
-                        : 'badge-danger'
-                    }`}
-                    style={{ marginTop: 4 }}
-                  >
-                    <span className="badge-dot" />
-                    {viewModal.status}
-                  </span>
+                  <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase' }}>Reason</span>
+                  <p style={{ marginTop: 4, background: 'var(--bg)', padding: 10, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>"{viewModal.reason || 'Personal leave request'}"</p>
                 </div>
               </div>
             </div>
             <div className="modal-footer">
-              <button
-                className="btn btn-primary"
-                onClick={() => setViewModal(null)}
-              >
-                Done
-              </button>
+              <button className="btn btn-primary" onClick={() => setViewModal(null)}>Done</button>
             </div>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+/* ─── Root export: role-aware ─── */
+export default function AttendanceLeave() {
+  const { userRole } = useApp();
+  return userRole === 'employee' ? <EmployeeAttendanceView /> : <AdminAttendanceView />;
 }
