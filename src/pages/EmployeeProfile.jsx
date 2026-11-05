@@ -27,16 +27,19 @@ export default function EmployeeProfile() {
   const { employees, updateEmployee } = useApp();
 
   // Find employee or fallback to Ethan Wilson (EMP001)
-  const employee = employees.find((e) => e.id === id) || employees[0];
+  const employee = employees.find((e) => e.id === id) || employees[0] || {};
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({
-    designation: employee.designation,
-    department: employee.department,
-    phone: employee.phone,
-    location: employee.location,
-    reportingManager: employee.reportingManager,
+    designation: employee.designation || '',
+    department: employee.department || '',
+    phone: employee.phone || '',
+    location: employee.location || '',
+    reportingManager: employee.reportingManager || '',
   });
+
+  const leaveBalance = employee.leaveBalance || { annual: 12, sick: 7, casual: 5, totalRemaining: 24 };
+  const attendance = employee.attendance || { present: 198, absent: 4, late: 6, percentage: 98 };
 
   const handleEditSubmit = (e) => {
     e.preventDefault();
@@ -138,7 +141,7 @@ export default function EmployeeProfile() {
       </div>
 
       {/* Two-Column Information Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="profile-content-grid">
         {/* PERSONAL INFORMATION */}
         <div className="profile-section">
           <div className="profile-section-header">
@@ -242,17 +245,17 @@ export default function EmployeeProfile() {
           <div className="profile-section-body">
             <div className="leave-balance-grid">
               <div className="leave-balance-item">
-                <div className="leave-count">{employee.leaveBalance.annual}</div>
+                <div className="leave-count">{leaveBalance.annual}</div>
                 <div className="leave-label">Annual Leave</div>
                 <div className="leave-total">Remaining of 18 days</div>
               </div>
               <div className="leave-balance-item">
-                <div className="leave-count">{employee.leaveBalance.sick}</div>
+                <div className="leave-count">{leaveBalance.sick}</div>
                 <div className="leave-label">Sick Leave</div>
                 <div className="leave-total">Remaining of 10 days</div>
               </div>
               <div className="leave-balance-item">
-                <div className="leave-count">{employee.leaveBalance.casual}</div>
+                <div className="leave-count">{leaveBalance.casual}</div>
                 <div className="leave-label">Casual Leave</div>
                 <div className="leave-total">Remaining of 07 days</div>
               </div>
@@ -275,19 +278,19 @@ export default function EmployeeProfile() {
             <div className="attendance-summary-grid">
               <div className="attendance-summary-item">
                 <div className="att-value" style={{ color: 'var(--success)' }}>
-                  {employee.attendance.present}
+                  {attendance.present}
                 </div>
                 <div className="att-label">Present Days</div>
               </div>
               <div className="attendance-summary-item">
                 <div className="att-value" style={{ color: 'var(--danger)' }}>
-                  {employee.attendance.absent}
+                  {attendance.absent}
                 </div>
                 <div className="att-label">Absent Days</div>
               </div>
               <div className="attendance-summary-item">
                 <div className="att-value" style={{ color: 'var(--primary)' }}>
-                  {employee.attendance.percentage}%
+                  {attendance.percentage}%
                 </div>
                 <div className="att-label">Turnout Rate</div>
               </div>

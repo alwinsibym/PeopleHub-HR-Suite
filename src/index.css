@@ -1760,6 +1760,12 @@ img {
   padding-bottom: 8px;
 }
 
+.profile-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
 .profile-section {
   background: var(--card);
   border: 1px solid var(--border);
@@ -2385,6 +2391,38 @@ img {
     flex-direction: column !important;
     align-items: flex-start !important;
     padding: 18px !important;
+  }
+
+  /* Employee profile responsive fixes */
+  .profile-content-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .profile-header-content {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 0 18px 20px 18px !important;
+    margin-top: -36px !important;
+  }
+
+  .profile-actions {
+    width: 100% !important;
+    margin-top: 12px;
+  }
+
+  .profile-actions .btn {
+    width: 100% !important;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .leave-balance-grid,
+  .attendance-summary-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
   }
 }
 
