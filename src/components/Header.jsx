@@ -13,6 +13,7 @@ import {
   CheckCheck,
   Building2,
   Repeat,
+  Menu,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -27,7 +28,7 @@ const breadcrumbMap = {
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { showToast, userRole, currentUser, switchRole, logout } = useApp();
+  const { showToast, userRole, currentUser, switchRole, logout, setMobileMenuOpen } = useApp();
   const [showNotif, setShowNotif] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
@@ -101,6 +102,14 @@ export default function Header() {
   return (
     <header className="top-header">
       <div className="header-left">
+        <button
+          className="mobile-menu-trigger"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Open navigation menu"
+        >
+          <Menu size={20} />
+        </button>
+
         <div className="company-badge">
           <Building2 size={13} style={{ color: 'var(--primary)' }} />
           <span>Manzio Creative Studio</span>

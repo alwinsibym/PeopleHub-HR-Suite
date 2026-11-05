@@ -17,6 +17,8 @@ export function AppProvider({ children }) {
 
   // Auth state — null means not logged in
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Mobile sidebar open state
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // Role: 'admin' (Sarah Mitchell) or 'employee' (Ethan Wilson)
   const [userRole, setUserRole] = useState('admin');
   const [isClockedIn, setIsClockedIn] = useState(true);
@@ -244,6 +246,8 @@ export function AppProvider({ children }) {
         userRole,
         currentUser,
         isAuthenticated,
+        mobileMenuOpen,
+        setMobileMenuOpen,
         isClockedIn,
         clockInTime,
         clockOutTime,
