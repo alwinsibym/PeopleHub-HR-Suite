@@ -1,117 +1,85 @@
-# PeopleHub – HR Management System (HRMS)
+# PeopleHub — HR Management System
 
-A modern, minimal, and user-friendly SaaS HR Management System concept designed for the **Manzio Creative Studio Pvt Ltd** internship UI/UX design assessment.
+A desktop-first HR management interface with a dashboard, employee directory, and attendance and leave management.
 
-Built with **React**, **Vite**, **Lucide Icons**, and modern CSS adhering to strict design system specifications.
+**Live demo:** [peoplehub-hr-suite.vercel.app](https://peoplehub-hr-suite.vercel.app)
 
----
+Built as a UI design assessment for Manzio Creative Studio. The brief asked for three desktop screens, and this project implements them as a working front-end prototype with sample data.
 
-## 🌟 Live Demo Preview
+## Preview
 
-- **Reference Resolution:** 1440 × 900 (Desktop-first)
-- **Design Tokens:**
-  - **Primary:** `#5145E5`
-  - **Primary Hover:** `#4338CA`
-  - **Background Canvas:** `#F8F9FC`
-  - **Card Surface:** `#FFFFFF`
-  - **Text Primary:** `#20243A`
-  - **Text Secondary:** `#747B8C`
-  - **Borders:** `#EAECF2`
-  - **Typography:** Inter (Google Fonts)
-  - **Spatial Grid:** 8px rhythm with 16px soft-radius cards
+![Dashboard](docs/screenshots/dashboard.png)
 
----
+| Employee Directory | Attendance & Leave |
+| --- | --- |
+| ![Employee Directory](docs/screenshots/employees.png) | ![Attendance and Leave](docs/screenshots/attendance.png) |
 
-## 📱 Mandatory & Additional Screens
+## Screens
 
-### 1. Dashboard (`/`)
-- Personalized greeting: *"Good morning, Sarah!"* with dynamic date indicator.
-- **4 Core Metrics:** Total Employees (248), Present Today (219), On Leave (12), Pending Requests (08).
-- **Attendance Overview:** Proportional SVG Donut chart breakdown + Mon–Fri 5-day weekly attendance trend.
-- **Pending Leave Requests:** Compact table with 1-click **Approve** and **Reject** quick actions.
-- **Workforce Activity Stream:** Real-time audit log of approvals, check-ins, and onboarding.
-- **Upcoming Company Events:** Thanksgiving Holiday, Work Anniversaries, Townhall meetings.
+**Dashboard** (`/`)
+- Summary cards: total employees, present today, on leave, pending requests
+- Attendance overview with a donut chart and weekly trend
+- Pending leave requests with inline approve and reject actions
+- Recent activity and upcoming events
 
-### 2. Employee Directory (`/employees`)
-- Real-time search across names, emails, roles, and employee IDs.
-- Department filter (Engineering, Design, HR, Marketing, Finance, Operations) and Status filter.
-- Work arrangement badges: **`Hybrid`**, **`Onsite`**, **`Remote`**.
-- **Slide-Over Profile Preview Drawer:** View contact info, tenure, direct manager, and skills tags without losing table scroll position.
-- **Add Employee Modal:** Functional form to onboard new employees with live state updates.
+**Employee Directory** (`/employees`)
+- Search by name, email, role, or employee ID
+- Filter by department and status
+- Slide-over profile preview, so the list keeps its place while you browse
+- Add Employee form
 
-### 3. Employee Profile (`/employees/EMP001`)
-- Deep dive on **Ethan Wilson** (Senior Software Developer).
-- Cover banner header with 96px avatar and active status indicator.
-- **2-Column Information Matrix:** Personal Info, Employment Details, Leave Balances (Annual, Sick, Casual), and Turnout Rate (98%).
-- **Interactive Edit Profile Modal:** Modify title, phone, or location live in state.
+**Attendance & Leave** (`/attendance`)
+- Attendance tab: check-in and check-out times, check-in method, late badges
+- Leave tab: request summary, leave reasons, remaining balances, approve and reject with a confirmation dialog
 
-### 4. Attendance & Leave Management (`/attendance`)
-- **Unified Single-Page Tabbed Architecture:**
-  - **Tab A – Attendance Records:** Turnout summary, shift schedule (`09:00 – 18:00`), check-in/out times, check-in method (*Biometric Scanner*, *Web App*, *Mobile GPS*), and late delay badges (`Late (+35m)`).
-  - **Tab B – Leave Requests:** Summary cards strictly matching assessment specs (**42 Total**, **08 Pending**, **28 Approved**, **06 Rejected**). Employee leave reasons and remaining balance pills (`14d left`).
-  - **Confirmation Dialogs:** Modal confirmation on approve/reject with animated toast feedback.
+**Extras:** employee profile page, an admin / employee role switcher, and Performance and Payroll pages.
 
-### 5. Role-Based Access Control Demo
-- **1-Click Role Switcher in Header:** Toggle between **Administrator (Sarah Mitchell)** and **Employee Self-Service (Ethan Wilson)**.
-- **Employee View:** Personal workday clock-in/out punch card, available leave days, and **`+ Apply for Leave`** application form that submits directly into Sarah's approval queue!
+## Design Approach
 
----
+- **Clear hierarchy.** A neutral background, white cards, and one accent colour keep the focus on data and actions.
+- **Pending work up front.** Leave requests that need a decision sit on the dashboard with one-click actions.
+- **Keep context.** Profiles open in a side drawer instead of a new page, so search and filters are not lost.
+- **Confirm decisions.** Approving or rejecting a request asks for confirmation and ends with a toast message.
+- **Consistent navigation.** A fixed sidebar and a shared header appear on every screen.
 
-## 🚀 Getting Started Locally
+Design tokens live in `src/index.css`. The main ones: primary `#5145E5`, background `#F8F9FC`, text `#20243A`, Inter typeface, 8px spacing, 16px card radius. Designed at 1440 × 900.
 
-### Prerequisites
-- Node.js (v18 or higher recommended)
-- npm or yarn
+## Tech Stack
 
-### Installation
+React 19, Vite, React Router, Lucide icons, plain CSS, deployed on Vercel.
+
+## Run Locally
+
+Requires Node.js 18 or later.
 
 ```bash
-# Clone the repository
 git clone https://github.com/alwinsibym/PeopleHub-HR-Suite.git
-
-# Navigate to project folder
 cd PeopleHub-HR-Suite
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
 ```
 
-Open **`http://localhost:5173/`** in your browser.
+Open `http://localhost:5173`.
+
+## Project Structure
+
+```
+docs/
+└── screenshots/  README images
+src/
+├── components/   Header, Sidebar
+├── context/      Shared app state (role, leave requests, clock-in)
+├── data/         Sample data
+├── pages/        Dashboard, Employees, EmployeeProfile, AttendanceLeave, Performance, Payroll, Auth
+├── App.jsx
+├── main.jsx
+└── index.css     Design tokens and global styles
+```
+
+## Note
+
+All names, figures, and images are sample content. There is no backend.
 
 ---
 
-## 📁 Project Structure
-
-```
-PeopleHub-HR-Suite/
-├── index.html
-├── package.json
-├── vite.config.js
-└── src/
-    ├── main.jsx
-    ├── App.jsx
-    ├── index.css               # Design system tokens, typography, radii, & shadows
-    ├── components/
-    │   ├── Header.jsx          # Breadcrumbs, role-switcher, search, notifications, profile
-    │   └── Sidebar.jsx         # 236px fixed navigation with core & bonus modules
-    ├── context/
-    │   └── AppContext.jsx      # Centralized reactive store (Admin/Employee state, leaves, clock)
-    ├── data/
-    │   └── sampleData.js       # Curated realistic HR data (tenure, skills, shifts, reasons)
-    └── pages/
-        ├── Auth.jsx            # Sign In / Sign Up with 1-click Demo logins
-        ├── Dashboard.jsx       # Screen 01: Workforce dashboard & ESS punch card
-        ├── Employees.jsx       # Screen 02: Directory & slide-over preview drawer
-        ├── EmployeeProfile.jsx # Screen 03: Ethan Wilson profile & edit modal
-        ├── AttendanceLeave.jsx # Screen 04: Unified Attendance & Leave management
-        ├── Performance.jsx     # Bonus: Quarterly reviews & goal progress
-        └── Payroll.jsx         # Bonus: Monthly salary disbursements & payslips
-```
-
----
-
-## 📄 License & Credits
-Designed and engineered as an internship assessment concept for **Manzio Creative Studio Pvt Ltd**.
+Designed and built by [Alwin](https://github.com/alwinsibym).
