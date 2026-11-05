@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { showToast, switchRole } = useApp();
+  const { showToast, login } = useApp();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('sarah.mitchell@peoplehub.com');
   const [password, setPassword] = useState('••••••••••••');
@@ -13,7 +13,7 @@ export default function Auth() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    switchRole('admin');
+    login('admin');
     showToast(
       isSignUp ? 'Account created successfully! Welcome to PeopleHub.' : 'Welcome back, Sarah!',
       'success'
@@ -22,12 +22,12 @@ export default function Auth() {
   };
 
   const handleAdminDemoLogin = () => {
-    switchRole('admin');
+    login('admin');
     navigate('/');
   };
 
   const handleEmployeeDemoLogin = () => {
-    switchRole('employee');
+    login('employee');
     navigate('/');
   };
 

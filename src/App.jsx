@@ -29,6 +29,12 @@ function ToastContainer() {
 }
 
 function MainLayout({ children }) {
+  const { isAuthenticated } = useApp();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <div className="app-layout">
       <Sidebar />

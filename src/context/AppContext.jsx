@@ -15,6 +15,8 @@ export function AppProvider({ children }) {
   const [activitiesList, setActivitiesList] = useState(initialActivities);
   const [toast, setToast] = useState(null);
 
+  // Auth state — null means not logged in
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   // Role: 'admin' (Sarah Mitchell) or 'employee' (Ethan Wilson)
   const [userRole, setUserRole] = useState('admin');
   const [isClockedIn, setIsClockedIn] = useState(true);
@@ -58,12 +60,23 @@ export function AppProvider({ children }) {
 
   const switchRole = (newRole) => {
     setUserRole(newRole);
+    setIsAuthenticated(true);
     showToast(
       newRole === 'admin'
         ? 'Switched to Administrator Mode (Sarah Mitchell)'
         : 'Switched to Employee Self-Service Mode (Ethan Wilson)',
       'success'
     );
+  };
+
+  const login = (role) => {
+    setUserRole(role);
+    setIsAuthenticated(true);
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+    setUserRole('admin');
   };
 
   const toggleClock = () => {
@@ -230,11 +243,14 @@ export function AppProvider({ children }) {
         toast,
         userRole,
         currentUser,
+        isAuthenticated,
         isClockedIn,
         clockInTime,
         clockOutTime,
         SHIFT_START,
         SHIFT_END,
+        login,
+        logout,
         switchRole,
         toggleClock,
         submitEmployeeLeave,

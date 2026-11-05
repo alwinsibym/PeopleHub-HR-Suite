@@ -27,7 +27,7 @@ const breadcrumbMap = {
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { showToast, userRole, currentUser, switchRole } = useApp();
+  const { showToast, userRole, currentUser, switchRole, logout } = useApp();
   const [showNotif, setShowNotif] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
@@ -291,6 +291,7 @@ export default function Header() {
                 className="dropdown-item danger"
                 onClick={() => {
                   setShowProfileMenu(false);
+                  logout();
                   showToast('Logged out of session', 'success');
                   navigate('/login');
                 }}

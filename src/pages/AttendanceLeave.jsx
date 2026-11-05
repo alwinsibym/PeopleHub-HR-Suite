@@ -18,8 +18,11 @@ import {
   LogOut,
   Timer,
   CheckCircle2,
+  Calendar,
+  Building,
+  Briefcase,
 } from 'lucide-react';
-import { departments } from '../data/sampleData';
+import { departments, employees } from '../data/sampleData';
 import { useApp } from '../context/AppContext';
 
 /* ─── helpers ─── */
@@ -34,6 +37,116 @@ function fmtDuration(ms) {
   return `${padZ(h)}h ${padZ(m)}m ${padZ(s)}s`;
 }
 
+/* ─── Shift definitions ─── */
+const shiftColors = {
+  'Morning (09:00 - 18:00)': { bg: '#EBF2FF', text: '#2563EB', border: '#BFDBFE' },
+  'General (09:00 - 18:00)': { bg: '#EBF2FF', text: '#2563EB', border: '#BFDBFE' },
+  'Evening (13:00 - 22:00)': { bg: '#FDF4FF', text: '#9333EA', border: '#F5D0FE' },
+  'Night (21:00 - 06:00)': { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A' },
+  'Remote / WFH': { bg: '#ECFDF5', text: '#059669', border: '#A7F3D0' },
+  'Weekly Off': { bg: '#F1F5F9', text: '#64748B', border: '#E2E8F0' },
+};
+
+/* ─── Sample Roster Data ─── */
+const initialRosterData = [
+  {
+    employeeId: 'EMP001',
+    name: 'Ethan Wilson',
+    role: 'Senior Software Developer',
+    department: 'Engineering',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+    schedule: {
+      Mon: 'General (09:00 - 18:00)',
+      Tue: 'General (09:00 - 18:00)',
+      Wed: 'Remote / WFH',
+      Thu: 'General (09:00 - 18:00)',
+      Fri: 'Remote / WFH',
+      Sat: 'Weekly Off',
+      Sun: 'Weekly Off',
+    },
+  },
+  {
+    employeeId: 'EMP002',
+    name: 'Sophia Anderson',
+    role: 'UI/UX Designer',
+    department: 'Design',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face',
+    schedule: {
+      Mon: 'General (09:00 - 18:00)',
+      Tue: 'General (09:00 - 18:00)',
+      Wed: 'General (09:00 - 18:00)',
+      Thu: 'Remote / WFH',
+      Fri: 'General (09:00 - 18:00)',
+      Sat: 'Weekly Off',
+      Sun: 'Weekly Off',
+    },
+  },
+  {
+    employeeId: 'EMP003',
+    name: 'Olivia Martin',
+    role: 'HR Manager',
+    department: 'Human Resources',
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
+    schedule: {
+      Mon: 'General (09:00 - 18:00)',
+      Tue: 'General (09:00 - 18:00)',
+      Wed: 'General (09:00 - 18:00)',
+      Thu: 'General (09:00 - 18:00)',
+      Fri: 'General (09:00 - 18:00)',
+      Sat: 'Weekly Off',
+      Sun: 'Weekly Off',
+    },
+  },
+  {
+    employeeId: 'EMP004',
+    name: 'Noah Thomas',
+    role: 'Marketing Executive',
+    department: 'Marketing',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
+    schedule: {
+      Mon: 'Remote / WFH',
+      Tue: 'Remote / WFH',
+      Wed: 'Remote / WFH',
+      Thu: 'Remote / WFH',
+      Fri: 'Remote / WFH',
+      Sat: 'Weekly Off',
+      Sun: 'Weekly Off',
+    },
+  },
+  {
+    employeeId: 'EMP005',
+    name: 'Ava Johnson',
+    role: 'Financial Analyst',
+    department: 'Finance',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
+    schedule: {
+      Mon: 'General (09:00 - 18:00)',
+      Tue: 'General (09:00 - 18:00)',
+      Wed: 'General (09:00 - 18:00)',
+      Thu: 'General (09:00 - 18:00)',
+      Fri: 'General (09:00 - 18:00)',
+      Sat: 'Weekly Off',
+      Sun: 'Weekly Off',
+    },
+  },
+  {
+    employeeId: 'EMP006',
+    name: 'Liam Brown',
+    role: 'Product Designer',
+    department: 'Design',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+    schedule: {
+      Mon: 'Evening (13:00 - 22:00)',
+      Tue: 'Evening (13:00 - 22:00)',
+      Wed: 'Evening (13:00 - 22:00)',
+      Thu: 'Evening (13:00 - 22:00)',
+      Fri: 'Evening (13:00 - 22:00)',
+      Sat: 'Weekly Off',
+      Sun: 'Weekly Off',
+    },
+  },
+];
+
 /* ─── Live Shift Timer (employee only) ─── */
 function ShiftTimer({ isClockedIn, clockInTime, clockOutTime, SHIFT_START, SHIFT_END }) {
   const [now, setNow] = useState(new Date());
@@ -47,12 +160,10 @@ function ShiftTimer({ isClockedIn, clockInTime, clockOutTime, SHIFT_START, SHIFT
   shiftStart.setHours(SHIFT_START.h, SHIFT_START.m, 0, 0);
   const shiftEnd = new Date(now);
   shiftEnd.setHours(SHIFT_END.h, SHIFT_END.m, 0, 0);
-  const shiftTotal = shiftEnd - shiftStart; // 9 hrs in ms
+  const shiftTotal = shiftEnd - shiftStart;
 
-  // — Clocked out: show total worked time —
   if (clockOutTime) {
     const worked = clockOutTime - clockInTime;
-    const wouldEnd = shiftEnd;
     const pct = Math.min(100, (worked / shiftTotal) * 100);
     return (
       <div style={{
@@ -78,7 +189,6 @@ function ShiftTimer({ isClockedIn, clockInTime, clockOutTime, SHIFT_START, SHIFT
           <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: 4 }}>
             Clocked in {clockInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} → Clocked out {clockOutTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
-          {/* progress bar */}
           <div style={{ marginTop: 10, height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${pct}%`, background: 'var(--success)', borderRadius: 4, transition: 'width 1s linear' }} />
           </div>
@@ -88,7 +198,6 @@ function ShiftTimer({ isClockedIn, clockInTime, clockOutTime, SHIFT_START, SHIFT
     );
   }
 
-  // — Before shift starts (not yet clocked in) —
   if (!isClockedIn && now < shiftStart) {
     const timeToStart = shiftStart - now;
     return (
@@ -113,7 +222,7 @@ function ShiftTimer({ isClockedIn, clockInTime, clockOutTime, SHIFT_START, SHIFT
             {fmtDuration(timeToStart)}
           </div>
           <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-            Time remaining until your shift begins
+            Time remaining until your scheduled shift begins
           </div>
         </div>
         <span className="badge badge-info" style={{ fontSize: '0.82rem', padding: '6px 14px' }}>Not Started</span>
@@ -121,7 +230,6 @@ function ShiftTimer({ isClockedIn, clockInTime, clockOutTime, SHIFT_START, SHIFT
     );
   }
 
-  // — Clocked in: show elapsed + remaining —
   if (isClockedIn && clockInTime) {
     const elapsed = now - clockInTime;
     const remaining = shiftEnd - now;
@@ -159,7 +267,6 @@ function ShiftTimer({ isClockedIn, clockInTime, clockOutTime, SHIFT_START, SHIFT
               </div>
             </div>
           </div>
-          {/* progress bar */}
           <div style={{ marginTop: 12, height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
             <div style={{
               height: '100%',
@@ -179,7 +286,6 @@ function ShiftTimer({ isClockedIn, clockInTime, clockOutTime, SHIFT_START, SHIFT
     );
   }
 
-  // — Default: not clocked in during shift hours —
   const timeLeft = shiftEnd - now;
   return (
     <div style={{
@@ -211,6 +317,101 @@ function ShiftTimer({ isClockedIn, clockInTime, clockOutTime, SHIFT_START, SHIFT
   );
 }
 
+/* ─── Duty Roster / Schedule Table ─── */
+function RosterTable({ rosterData, isEmployee = false }) {
+  const days = [
+    { key: 'Mon', label: 'Mon, Nov 03' },
+    { key: 'Tue', label: 'Tue, Nov 04' },
+    { key: 'Wed', label: 'Wed, Nov 05', isToday: true },
+    { key: 'Thu', label: 'Thu, Nov 06' },
+    { key: 'Fri', label: 'Fri, Nov 07' },
+    { key: 'Sat', label: 'Sat, Nov 08' },
+    { key: 'Sun', label: 'Sun, Nov 09' },
+  ];
+
+  return (
+    <div className="card">
+      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2>Weekly Duty Roster &amp; Shifts</h2>
+          <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+            Week 45 · Nov 03 – Nov 09, 2026
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563EB' }} /> General (09-18)
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#059669' }} /> WFH
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#9333EA' }} /> Evening
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#64748B' }} /> Off
+          </span>
+        </div>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="data-table" style={{ textAlign: 'center' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', minWidth: 200 }}>Employee</th>
+              {days.map((d) => (
+                <th key={d.key} style={{ minWidth: 120, background: d.isToday ? '#EEEDFC' : undefined, color: d.isToday ? 'var(--primary)' : undefined }}>
+                  {d.label}
+                  {d.isToday && <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase' }}>Today</span>}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rosterData.map((emp) => (
+              <tr key={emp.employeeId}>
+                <td style={{ textAlign: 'left' }}>
+                  <div className="employee-cell">
+                    <img src={emp.avatar} alt={emp.name} />
+                    <div className="emp-info">
+                      <span className="emp-name">{emp.name}</span>
+                      <span className="emp-email">{emp.department}</span>
+                    </div>
+                  </div>
+                </td>
+                {days.map((d) => {
+                  const shift = emp.schedule[d.key] || 'General (09:00 - 18:00)';
+                  const style = shiftColors[shift] || shiftColors['General (09:00 - 18:00)'];
+                  return (
+                    <td key={d.key} style={{ background: d.isToday ? '#FAFAFD' : undefined, padding: '10px 6px' }}>
+                      <div
+                        style={{
+                          background: style.bg,
+                          color: style.text,
+                          border: `1px solid ${style.border}`,
+                          padding: '6px 8px',
+                          borderRadius: 6,
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {shift.includes('(') ? shift.split('(')[0] : shift}
+                        <span style={{ display: 'block', fontSize: '0.68rem', opacity: 0.85, fontWeight: 500, marginTop: 2 }}>
+                          {shift.includes('(') ? shift.split('(')[1].replace(')', '') : ''}
+                        </span>
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Employee Self-Service View ─── */
 function EmployeeAttendanceView() {
   const {
@@ -234,8 +435,9 @@ function EmployeeAttendanceView() {
     reason: '',
   });
 
-  // Only Ethan Wilson's records
   const myLeaves = leaveRequests.filter((l) => l.employeeId === 'EMP001');
+  const myRoster = initialRosterData.filter((r) => r.employeeId === 'EMP001');
+
   const myAttendanceHistory = [
     { date: 'Nov 05, 2026', checkIn: '09:02 AM', checkOut: isClockedIn ? '—' : (clockOutTime ? clockOutTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'), status: 'Present', hours: isClockedIn ? 'In Progress' : '—' },
     { date: 'Nov 04, 2026', checkIn: '09:00 AM', checkOut: '06:03 PM', status: 'Present', hours: '9h 03m' },
@@ -272,8 +474,8 @@ function EmployeeAttendanceView() {
     <div className="page-content">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h1>My Attendance & Leave</h1>
-          <p className="subtitle">Your personal attendance records and leave history.</p>
+          <h1>My Attendance &amp; Leave</h1>
+          <p className="subtitle">Your personal attendance records, weekly schedule, and leave history.</p>
         </div>
         <button
           className={`btn ${isClockedIn ? 'btn-danger' : 'btn-success'}`}
@@ -317,6 +519,9 @@ function EmployeeAttendanceView() {
         <button className={`tab ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>
           <CalendarDays size={16} /> My Attendance Log
         </button>
+        <button className={`tab ${activeTab === 'roster' ? 'active' : ''}`} onClick={() => setActiveTab('roster')}>
+          <Calendar size={16} /> My Shift Schedule
+        </button>
         <button className={`tab ${activeTab === 'leave' ? 'active' : ''}`} onClick={() => setActiveTab('leave')}>
           <FileText size={16} /> My Leave Requests
           {myLeaves.filter(l => l.status === 'Pending').length > 0 && (
@@ -327,7 +532,7 @@ function EmployeeAttendanceView() {
         </button>
       </div>
 
-      {activeTab === 'attendance' ? (
+      {activeTab === 'attendance' && (
         <div className="card">
           <div className="card-header">
             <h2>Attendance Log</h2>
@@ -356,7 +561,13 @@ function EmployeeAttendanceView() {
             </tbody>
           </table>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'roster' && (
+        <RosterTable rosterData={myRoster} isEmployee={true} />
+      )}
+
+      {activeTab === 'leave' && (
         <div className="card">
           <div className="card-header">
             <h2>My Leave Requests</h2>
@@ -458,7 +669,7 @@ function EmployeeAttendanceView() {
   );
 }
 
-/* ─── Admin View (unchanged logic) ─── */
+/* ─── Admin View ─── */
 function AdminAttendanceView() {
   const { attendance, leaveRequests, approveLeave, rejectLeave } = useApp();
 
@@ -493,6 +704,12 @@ function AdminAttendanceView() {
       && (statusFilter === 'All' || statusFilter === 'All Status' || r.status === statusFilter);
   });
 
+  const filteredRoster = initialRosterData.filter((r) => {
+    const q = search.toLowerCase();
+    return (r.name.toLowerCase().includes(q) || r.employeeId.toLowerCase().includes(q))
+      && (deptFilter === 'All Departments' || r.department === deptFilter);
+  });
+
   const filteredLeave = leaveRequests.filter((r) => {
     const q = search.toLowerCase();
     return (r.name.toLowerCase().includes(q) || r.leaveType.toLowerCase().includes(q))
@@ -514,148 +731,159 @@ function AdminAttendanceView() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <h1>Attendance &amp; Leave</h1>
-        <p className="subtitle">Track real-time attendance and manage employee leave requests.</p>
+        <h1>Attendance &amp; Workforce Schedule</h1>
+        <p className="subtitle">Track real-time attendance, manage shift rosters, and review employee leave requests.</p>
       </div>
 
       <div className="tabs">
         <button className={`tab ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => { setActiveTab('attendance'); setSearch(''); setStatusFilter('All'); }}>
           <CalendarDays size={17} /> Attendance Records <span className="tab-badge">248 Total</span>
         </button>
+        <button className={`tab ${activeTab === 'roster' ? 'active' : ''}`} onClick={() => { setActiveTab('roster'); setSearch(''); setStatusFilter('All'); }}>
+          <Calendar size={17} /> Duty Roster &amp; Shifts <span className="tab-badge">Weekly View</span>
+        </button>
         <button className={`tab ${activeTab === 'leave' ? 'active' : ''}`} onClick={() => { setActiveTab('leave'); setSearch(''); setStatusFilter('All'); }}>
           <FileText size={17} /> Leave Requests <span className="tab-badge">{pendingLeaves.length} Pending</span>
         </button>
       </div>
 
-      <div className="stat-cards">
-        {(activeTab === 'attendance' ? attendanceStats : leaveStats).map((s, i) => (
-          <div className="stat-card" key={i}>
-            <div className={`stat-icon ${s.accent}`}>{s.icon ? <s.icon size={22} /> : <FileText size={22} />}</div>
-            <div className="stat-info">
-              <h3>{s.value}</h3>
-              <p>{s.label}</p>
-              {s.sub && <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>{s.sub}</span>}
+      {activeTab !== 'roster' && (
+        <div className="stat-cards">
+          {(activeTab === 'attendance' ? attendanceStats : leaveStats).map((s, i) => (
+            <div className="stat-card" key={i}>
+              <div className={`stat-icon ${s.accent}`}>{s.icon ? <s.icon size={22} /> : <FileText size={22} />}</div>
+              <div className="stat-info">
+                <h3>{s.value}</h3>
+                <p>{s.label}</p>
+                {s.sub && <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>{s.sub}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab !== 'roster' && (
+        <div className="toolbar">
+          <div className="toolbar-left">
+            {activeTab === 'attendance' && (
+              <div style={{ display: 'flex', gap: 4, background: 'white', padding: 4, borderRadius: 'var(--radius-full)', border: '1px solid var(--border)' }}>
+                {['Today', 'Yesterday', 'Weekly'].map((d) => (
+                  <button key={d} onClick={() => setSelectedDateFilter(d)} style={{ padding: '5px 14px', fontSize: '0.82rem', fontWeight: 600, borderRadius: 'var(--radius-full)', background: selectedDateFilter === d ? 'var(--primary)' : 'transparent', color: selectedDateFilter === d ? 'white' : 'var(--text-secondary)', transition: 'all 0.15s' }}>{d}</button>
+                ))}
+              </div>
+            )}
+            <div className="search-input">
+              <Search size={15} />
+              <input type="text" placeholder="Search by employee or ID..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              {search && <span className="clear-search-btn" onClick={() => setSearch('')} title="Clear"><X size={14} /></span>}
+            </div>
+            <select className="filter-select" value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}>
+              {departments.map((d) => <option key={d}>{d}</option>)}
+            </select>
+            <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              {activeTab === 'attendance'
+                ? ['All Status', 'Present', 'Late', 'Absent', 'On Leave'].map(o => <option key={o}>{o}</option>)
+                : ['All Status', 'Pending', 'Approved', 'Rejected'].map(o => <option key={o}>{o}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'roster' ? (
+        <RosterTable rosterData={filteredRoster} />
+      ) : (
+        <div className="card">
+          <div style={{ overflowX: 'auto' }}>
+            {activeTab === 'attendance' ? (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Employee</th><th>Shift</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Source</th><th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAttendance.map((r) => (
+                    <tr key={r.employeeId}>
+                      <td>
+                        <div className="employee-cell">
+                          <img src={r.avatar} alt={r.name} />
+                          <div className="emp-info">
+                            <div className="emp-name">{r.name}</div>
+                            <div className="emp-email">{r.department} · {r.employeeId}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.84rem' }}>{r.shift || '09:00 – 18:00'}</td>
+                      <td style={{ fontWeight: 600 }}>{r.checkIn}</td>
+                      <td style={{ fontWeight: 600 }}>{r.checkOut}</td>
+                      <td style={{ fontWeight: 600 }}>{r.workingHours}</td>
+                      <td><span style={{ background: 'var(--bg)', padding: '3px 9px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border)', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>{r.source || 'Web App'}</span></td>
+                      <td><span className={`badge ${badgeClass(r.status)}`}><span className="badge-dot" />{r.status}</span></td>
+                    </tr>
+                  ))}
+                  {filteredAttendance.length === 0 && (
+                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: 44, color: 'var(--text-secondary)' }}>No records found.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Employee</th><th>Leave Type</th><th>Duration</th><th>From → To</th><th>Reason</th><th>Balance</th><th>Status</th><th style={{ textAlign: 'center' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLeave.map((lr) => (
+                    <tr key={lr.id}>
+                      <td>
+                        <div className="employee-cell">
+                          <img src={lr.avatar} alt={lr.name} />
+                          <div className="emp-info">
+                            <div className="emp-name">{lr.name}</div>
+                            <div className="emp-email">{lr.department}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{lr.leaveType}</td>
+                      <td>{lr.days}d</td>
+                      <td style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>{lr.fromDate} → {lr.toDate}</td>
+                      <td style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lr.reason || '—'}</td>
+                      <td>{lr.balanceRemaining ?? 12}d</td>
+                      <td><span className={`badge ${leaveBadgeClass(lr.status)}`}><span className="badge-dot" />{lr.status}</span></td>
+                      <td>
+                        {lr.status === 'Pending' ? (
+                          <div className="action-btns" style={{ justifyContent: 'center' }}>
+                            <button className="btn btn-success btn-sm" onClick={() => setActionModal({ id: lr.id, name: lr.name, action: 'approve' })}><Check size={13} /> Approve</button>
+                            <button className="btn btn-danger btn-sm" onClick={() => setActionModal({ id: lr.id, name: lr.name, action: 'reject' })}><X size={13} /> Reject</button>
+                            <button className="btn-icon" title="Details" onClick={() => setViewModal(lr)}><Eye size={14} /></button>
+                          </div>
+                        ) : (
+                          <div style={{ textAlign: 'center' }}>
+                            <button className="btn-icon" title="Details" onClick={() => setViewModal(lr)}><Eye size={14} /></button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredLeave.length === 0 && (
+                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: 44, color: 'var(--text-secondary)' }}>No leave requests found.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <div className="pagination">
+            <span className="pagination-info">Showing {activeTab === 'attendance' ? filteredAttendance.length : filteredLeave.length} records</span>
+            <div className="pagination-buttons">
+              <button disabled><ChevronLeft size={16} /></button>
+              <button className="active">1</button>
+              <button>2</button>
+              <button><ChevronRight size={16} /></button>
             </div>
           </div>
-        ))}
-      </div>
-
-      <div className="toolbar">
-        <div className="toolbar-left">
-          {activeTab === 'attendance' && (
-            <div style={{ display: 'flex', gap: 4, background: 'white', padding: 4, borderRadius: 'var(--radius-full)', border: '1px solid var(--border)' }}>
-              {['Today', 'Yesterday', 'Weekly'].map((d) => (
-                <button key={d} onClick={() => setSelectedDateFilter(d)} style={{ padding: '5px 14px', fontSize: '0.82rem', fontWeight: 600, borderRadius: 'var(--radius-full)', background: selectedDateFilter === d ? 'var(--primary)' : 'transparent', color: selectedDateFilter === d ? 'white' : 'var(--text-secondary)', transition: 'all 0.15s' }}>{d}</button>
-              ))}
-            </div>
-          )}
-          <div className="search-input">
-            <Search size={15} />
-            <input type="text" placeholder="Search by employee or ID..." value={search} onChange={(e) => setSearch(e.target.value)} />
-            {search && <span className="clear-search-btn" onClick={() => setSearch('')} title="Clear"><X size={14} /></span>}
-          </div>
-          <select className="filter-select" value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}>
-            {departments.map((d) => <option key={d}>{d}</option>)}
-          </select>
-          <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            {activeTab === 'attendance'
-              ? ['All Status', 'Present', 'Late', 'Absent', 'On Leave'].map(o => <option key={o}>{o}</option>)
-              : ['All Status', 'Pending', 'Approved', 'Rejected'].map(o => <option key={o}>{o}</option>)}
-          </select>
         </div>
-      </div>
-
-      <div className="card">
-        <div style={{ overflowX: 'auto' }}>
-          {activeTab === 'attendance' ? (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Employee</th><th>Shift</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Source</th><th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAttendance.map((r) => (
-                  <tr key={r.employeeId}>
-                    <td>
-                      <div className="employee-cell">
-                        <img src={r.avatar} alt={r.name} />
-                        <div className="emp-info">
-                          <div className="emp-name">{r.name}</div>
-                          <div className="emp-email">{r.department} · {r.employeeId}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.84rem' }}>{r.shift || '09:00 – 18:00'}</td>
-                    <td style={{ fontWeight: 600 }}>{r.checkIn}</td>
-                    <td style={{ fontWeight: 600 }}>{r.checkOut}</td>
-                    <td style={{ fontWeight: 600 }}>{r.workingHours}</td>
-                    <td><span style={{ background: 'var(--bg)', padding: '3px 9px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border)', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>{r.source || 'Web App'}</span></td>
-                    <td><span className={`badge ${badgeClass(r.status)}`}><span className="badge-dot" />{r.status}</span></td>
-                  </tr>
-                ))}
-                {filteredAttendance.length === 0 && (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 44, color: 'var(--text-secondary)' }}>No records found.</td></tr>
-                )}
-              </tbody>
-            </table>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Employee</th><th>Leave Type</th><th>Duration</th><th>From → To</th><th>Reason</th><th>Balance</th><th>Status</th><th style={{ textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLeave.map((lr) => (
-                  <tr key={lr.id}>
-                    <td>
-                      <div className="employee-cell">
-                        <img src={lr.avatar} alt={lr.name} />
-                        <div className="emp-info">
-                          <div className="emp-name">{lr.name}</div>
-                          <div className="emp-email">{lr.department}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ fontWeight: 600 }}>{lr.leaveType}</td>
-                    <td>{lr.days}d</td>
-                    <td style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>{lr.fromDate} → {lr.toDate}</td>
-                    <td style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lr.reason || '—'}</td>
-                    <td>{lr.balanceRemaining ?? 12}d</td>
-                    <td><span className={`badge ${leaveBadgeClass(lr.status)}`}><span className="badge-dot" />{lr.status}</span></td>
-                    <td>
-                      {lr.status === 'Pending' ? (
-                        <div className="action-btns" style={{ justifyContent: 'center' }}>
-                          <button className="btn btn-success btn-sm" onClick={() => setActionModal({ id: lr.id, name: lr.name, action: 'approve' })}><Check size={13} /> Approve</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => setActionModal({ id: lr.id, name: lr.name, action: 'reject' })}><X size={13} /> Reject</button>
-                          <button className="btn-icon" title="Details" onClick={() => setViewModal(lr)}><Eye size={14} /></button>
-                        </div>
-                      ) : (
-                        <div style={{ textAlign: 'center' }}>
-                          <button className="btn-icon" title="Details" onClick={() => setViewModal(lr)}><Eye size={14} /></button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {filteredLeave.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', padding: 44, color: 'var(--text-secondary)' }}>No leave requests found.</td></tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-        <div className="pagination">
-          <span className="pagination-info">Showing {activeTab === 'attendance' ? filteredAttendance.length : filteredLeave.length} records</span>
-          <div className="pagination-buttons">
-            <button disabled><ChevronLeft size={16} /></button>
-            <button className="active">1</button>
-            <button>2</button>
-            <button><ChevronRight size={16} /></button>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Confirm Modal */}
       {actionModal && (
